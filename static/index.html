@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Short Links</title>
+    <style>
+        /* System font stack similar to Apple's sites */
+        :root{
+            --bg:#f5f7fb;
+            --card:#ffffff;
+            --muted:#6b7280;
+            --accent:#0071e3;
+            --glass: rgba(255,255,255,0.6);
+            --radius:16px;
+            --maxw:820px;
+        }
+        html,body{
+            height:100%;
+            margin:0;
+            background: linear-gradient(180deg,var(--bg),#ffffff);
+            -webkit-font-smoothing:antialiased;
+            -moz-osx-font-smoothing:grayscale;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color:#111827;
+        }
+        header{
+            display:flex;
+            justify-content:center;
+            padding:28px 16px 0;
+        }
+        .brand{
+            font-weight:600;
+            letter-spacing: -0.01em;
+            font-size:18px;
+        }
+        main{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:48px 16px;
+        }
+        .hero{
+            background:var(--card);
+            width:100%;
+            max-width:var(--maxw);
+            border-radius:var(--radius);
+            padding:48px;
+            box-shadow: 0 10px 30px rgba(16,24,40,0.06);
+            text-align:left;
+        }
+        .headline{
+            font-size:40px;
+            line-height:1.02;
+            margin:0 0 8px 0;
+            font-weight:700;
+        }
+        .sub{
+            color:var(--muted);
+            margin:0 0 28px 0;
+            font-size:16px;
+        }
+        .controls{
+            display:flex;
+            gap:12px;
+            align-items:center;
+            flex-wrap:wrap;
+        }
+        input[type="text"]{
+            flex:1 1 420px;
+            min-width:220px;
+            padding:16px 18px;
+            border-radius:12px;
+            border:1px solid rgba(16,24,40,0.06);
+            background: linear-gradient(180deg,var(--glass),var(--card));
+            font-size:16px;
+            outline:none;
+            box-shadow: inset 0 -1px 0 rgba(16,24,40,0.02);
+        }
+        .primary{
+            background: linear-gradient(180deg,var(--accent),#0057b8);
+            color:white;
+            border:none;
+            padding:12px 18px;
+            border-radius:12px;
+            font-weight:600;
+            cursor:pointer;
+            box-shadow: 0 6px 18px rgba(0,113,227,0.18);
+        }
+        .result{
+            margin-top:20px;
+            display:flex;
+            gap:8px;
+            align-items:center;
+            flex-wrap:wrap;
+        }
+        .chip{
+            display:inline-flex;
+            align-items:center;
+            gap:10px;
+            padding:10px 14px;
+            border-radius:999px;
+            background: linear-gradient(180deg,#f8fafc,#ffffff);
+            border:1px solid rgba(16,24,40,0.04);
+            font-weight:600;
+        }
+        .muted{ color:var(--muted); }
+        .copy-btn{
+            background:transparent;
+            border:1px solid rgba(16,24,40,0.06);
+            padding:8px 12px;
+            border-radius:10px;
+            cursor:pointer;
+        }
+        footer{ text-align:center; color:var(--muted); padding:28px 16px; font-size:14px; }
+
+        @media (max-width:560px){
+            .headline{ font-size:28px; }
+            .hero{ padding:28px; }
+            input[type="text"]{ padding:12px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">ShortLinks</div>
+    </header>
+
+    <main>
+        <section class="hero" aria-labelledby="title">
+            <h1 id="title" class="headline">Shorter links. Beautifully simple.</h1>
+            <p class="sub">Create short, shareable links in seconds. Paste a URL and get a short path you can copy or open immediately.</p>
+
+            <form id="shorten-form" class="controls" autocomplete="off">
+                <input id="url-input" type="text" placeholder="Paste a long URL (https://...)" required />
+                <button id="shorten-btn" class="primary" type="submit">Shorten</button>
+            </form>
+
+            <div id="result" class="result" aria-live="polite"></div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="muted">Built with care — minimal, private, and fast.</div>
+    </footer>
+
+    <script>
+        const form = document.getElementById('shorten-form');
+        const input = document.getElementById('url-input');
+        const result = document.getElementById('result');
+
+        function makeChip(shortUrl){
+            result.innerHTML = '';
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            const link = document.createElement('a');
+            link.href = shortUrl;
+            link.target = '_blank';
+            link.textContent = shortUrl;
+            link.style.color = 'inherit';
+            link.style.textDecoration = 'none';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.type = 'button';
+            copyBtn.textContent = 'Copy';
+            copyBtn.addEventListener('click', async ()=>{
+                try{
+                    await navigator.clipboard.writeText(shortUrl);
+                    copyBtn.textContent = 'Copied';
+                    setTimeout(()=> copyBtn.textContent = 'Copy', 2000);
+                }catch(e){
+                    copyBtn.textContent = 'Copy failed';
+                }
+            });
+
+            chip.appendChild(link);
+            chip.appendChild(copyBtn);
+            result.appendChild(chip);
+        }
+
+        form.addEventListener('submit', async (ev)=>{
+            ev.preventDefault();
+            const url = input.value.trim();
+            if(!url) return;
+            const btn = document.getElementById('shorten-btn');
+            btn.disabled = true;
+            btn.textContent = 'Shortening...';
+            result.textContent = '';
+            try{
+                const resp = await fetch('/shorten', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await resp.json();
+                if(resp.ok && data.short_url){
+                    const shortUrl = window.location.origin + data.short_url;
+                    makeChip(shortUrl);
+                } else {
+                    result.textContent = data.detail || 'Unable to shorten URL';
+                }
+            }catch(err){
+                result.textContent = 'Network error';
+            }finally{
+                btn.disabled = false;
+                btn.textContent = 'Shorten';
+            }
+        });
+    </script>
+</body>
+</html>
