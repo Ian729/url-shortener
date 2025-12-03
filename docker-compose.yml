@@ -1,24 +1,33 @@
-version: '3.8'
-
 services:
   app:
     build: .
     container_name: url-shortener-app
     ports:
-      - "8000:8000"
+      - 8000:8000
     environment:
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - url-net
 
   redis:
     image: redis
     container_name: redis-server
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - redis-data:/data
     networks:
       - url-net
 
 networks:
   url-net:
     name: url-net
+
+volumes:
+  redis-data:
