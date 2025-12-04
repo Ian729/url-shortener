@@ -1,11 +1,13 @@
+"""URL shortener service."""
+import hashlib
 import os
 import random
 import string
+
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 from redis import Redis
-import hashlib
 
 app = FastAPI()
 
@@ -15,17 +17,18 @@ redis_client = Redis.from_url(REDIS_URL, decode_responses=True)
 
 
 class URL(BaseModel):
+    """Request model for a URL."""
+
     url: str
 
 
 def _generate_code(length: int = 6) -> str:
-    return ''.join(
-        random.choices(string.ascii_letters + string.digits, k=length)
-    )
+    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
 @app.post("/shorten")
 def shorten_url(url: URL):
+    """Shortens a URL and stores it in Redis."""
     # normalize and hash the URL for reverse lookup
     url_value = url.url.strip()
     url_hash = hashlib.sha256(url_value.encode("utf-8")).hexdigest()
@@ -74,6 +77,7 @@ def shorten_url(url: URL):
 
 @app.get("/{short_code}")
 def redirect_to_url(short_code: str):
+    """Redirects a short code to its original URL."""
     target = redis_client.get(short_code)
     if target:
         return RedirectResponse(url=str(target))
@@ -82,5 +86,6 @@ def redirect_to_url(short_code: str):
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
-    with open("static/index.html") as f:
+    """Serves the static index.html file."""
+    with open("static/index.html", encoding="utf-8") as f:
         return HTMLResponse(content=f.read(), status_code=200)
